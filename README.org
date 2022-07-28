@@ -1,0 +1,61 @@
+
+*  lab1-vdikan-canvas
+
+Demo contract: Painting pixels on a Canvas with time lock.
+
+** Deployment
+
+Run ~./build.sh~ located in the project root. It compiles ~./out/main.wasm~.
+
+The canvas =width= and =height= are contract initialization parameters and
+should be set upon initial deployment, e.g.:
+
+#+begin_src shell
+  near dev-deploy --initFunction new --initArgs '{"width":20, "height":20}'
+#+end_src
+
+** Contract Views
+
+*** =get_pixel(x: usize, y: usize)=
+
+Return the status of the pixel at =(x, y)=:
+current =color= and if it is booked or free based on =release_timestamp=.
+
+Free method.
+
+#+begin_src shell
+  near call @dev-account  get_pixel --args '{"x": 20, "y": 20}' --accountId @account.testnet
+#+end_src
+
+#+RESULTS:
+'Pixel(20,20): color([170, 190, 230]); status: is free, one can paint it now (rel_ts=1659029595938149796).'
+
+*** =set_pixel(x: usize, y: usize, color: [u8, 3])=
+
+Repaint pixel at =(x, y)= to a new =color= (vector of R,G,B u8 channels),
+if it is not held at the time of transaction.
+
+Payable method. Minimal deposit locks pixel for 30 seconds. All the amount above
+buys extra time in proportion: 50 seconds for each 1 token above.
+
+#+begin_src shell
+  near call @dev-account set_pixel --args '{"x": 2, "y": 1, "color": [70, 90, 31]}' --accountId @account.testnet --amount=5.5
+#+end_src
+
+#+RESULTS:
+...
+  Log [@dev-account]: Pixel is booked: at (2,1), color:[70, 90, 31], released after 255 seconds (rel_ts=1659029846272097560)
+...
+
+** Possible Improvements
+
+ * Storage optimization using =near_sdk::collections=.
+   
+   Not sure if it is worth it. Frontend will expect all the canvas data
+   at once, therefore standard =Vec<>= ofpixels required.
+
+   At the same time, =release_timestamps= could be stored as separate
+   array. Here  =near_sdk::collections::Vector= may suit better.
+ * JSON-serizalization of view call responses.
+
+   That is what front-end would expect.
