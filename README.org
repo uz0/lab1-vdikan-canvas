@@ -55,7 +55,7 @@ buys extra time in proportion: 50 seconds for each 1 token above.
    at once, therefore standard =Vec<>= of pixels required.
 
    At the same time, =release_timestamps= could be stored as separate array.
-   Here  =near_sdk::collections::Vector= may suit better.
+   Here =Vector= from =near_sdk::collections= may suit better.
 
  * JSON-serizalization of view call responses.
 
