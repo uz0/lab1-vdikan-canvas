@@ -1,15 +1,9 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{env, log, near_bindgen};
-// use near_sdk::collections::{Vector};
-// use near_sdk::json_types::Base64&VecU8;
-// use near_sdk::serde::{Deserialize, Serialize};
-// use near_sdk::{
-//     env, near_bindgen, BlockHeight, BorshStorageKey, PanicOnDefault,
-// };
 
-// near_sdk::setup_alloc!();
-
-pub const CONST_BOOKING_TIME: u64 = 30_000_000_000; // half a minute
+pub const MIN_BOOKING_TIME: u64 = 30_000_000_000; // half a minute
+pub const MIN_DEPOSIT: u128 = 1_000_000_000_000_000_000_000_000; // 1 NEAR
+pub const EXTRA_FACTOR: u128 = 20_000_000_000_000; // divisor for deposit->time conversion above minimal
 
 /// Flatten (x, y) coordinates into an index of a 1-dimensional vector.
 /// Also checks for the limits ant appplies -1 offset.
@@ -90,10 +84,25 @@ impl Canvas {
         )
     }
 
-    /// Repaint pixel at (`x`,`y`) to a new `color`,
-    /// if it is not held at the time of transaction.
-    /// At the moment, it gets locked for the same `CONST_BOOKING_TIME`.
+    /// Repaint pixel at (`x`,`y`) to a new `color`, if it is not held
+    /// at the time of transaction, and if the amount of NEAR tokens
+    /// attached is larger or equal to `MIN_DEPOSIT`.
+    ///
+    /// Succesfully painet pixel is locked at least for `MIN_BOOKING_TIME`.
+    /// The extra amount of funds transferred gains extra booking time
+    /// (proportional to inverse of `EXTRA_FACTOR`.
+    ///
+    /// At the moment those parameters are set so that 1 NEAR buys 30 seconds
+    /// of time, for 50 seconds more for every other NEAR attached.
+    ///
+    ///NOTE: Those parameters can be made part of the contract state
+    /// set on #[init] along with Canvas `width` and `height`, but I
+    /// hard-wire them as global constants in this demo for brevity.
+    #[payable]
     pub fn set_pixel(&mut self, x: usize, y: usize, color: [u8; 3]) {
+        let amount = env::attached_deposit();
+        assert!(amount >= MIN_DEPOSIT, "Not enough deposit attached!");
+
         let index = coords_to_index(x, y, self.width, self.height);
         let pixel = self.field.get(index).unwrap();
 
@@ -103,7 +112,8 @@ impl Canvas {
 
         match time_diff {
             td if td <= 0 => {
-                let new_release_time = env::block_timestamp() + CONST_BOOKING_TIME;
+                let extra_time = ((amount - MIN_DEPOSIT) / EXTRA_FACTOR) as u64;
+                let new_release_time = env::block_timestamp() + MIN_BOOKING_TIME + extra_time;
 
                 self.field[index] = CanvasPixel {
                     color,
@@ -114,7 +124,7 @@ impl Canvas {
                     x,
                     y,
                     color,
-                    CONST_BOOKING_TIME / 1_000_000_000,
+                    (MIN_BOOKING_TIME + extra_time) / 1_000_000_000,
                     new_release_time
                 );
             }
@@ -170,7 +180,8 @@ mod tests {
 
     #[test]
     fn test_set_pixel() {
-        let context = get_context(false);
+        let mut context = get_context(false);
+        context.attached_deposit = 2 * MIN_DEPOSIT;
         testing_env!(context);
         let mut canvas = Canvas::new(20, 20);
 
