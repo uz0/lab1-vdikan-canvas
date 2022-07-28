@@ -52,10 +52,11 @@ buys extra time in proportion: 50 seconds for each 1 token above.
  * Storage optimization using =near_sdk::collections=.
    
    Not sure if it is worth it. Frontend will expect all the canvas data
-   at once, therefore standard =Vec<>= ofpixels required.
+   at once, therefore standard =Vec<>= of pixels required.
 
-   At the same time, =release_timestamps= could be stored as separate
-   array. Here  =near_sdk::collections::Vector= may suit better.
+   At the same time, =release_timestamps= could be stored as separate array.
+   Here  =near_sdk::collections::Vector= may suit better.
+
  * JSON-serizalization of view call responses.
 
    That is what front-end would expect.
